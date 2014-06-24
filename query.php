@@ -4,9 +4,11 @@ namespace neoData;
 
 class query {
 
-  static public function cypher($url, $query) {
-    if (!is_array($query)) {
+  static public function cypher($url, $query, $params = null) {
+    if (!is_array($query) && is_null($params)) {
       $query = array('query' => $query);
+    } else if (!is_null($params)) {
+      $query = array('query' => $query, 'params' => $params);
     }
     $ch = self::initCurl($url);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($query));
@@ -33,6 +35,33 @@ class query {
     $query .= '}) RETURN n';
     $postData = array('query' => $query,
       'params' => $data);
+    return self::cypher($url, $postData);
+  }
+
+  static public function createRelation($url, $labels, $nodeFromId, $nodeToId, $data = null) {
+    if (is_array($labels)) {
+      $labels = implode(':', $labels);
+    }
+    $query = "MATCH (a), (b) WHERE id(a) = {idOfStartNodeIs} AND id(b) = {idOfEndNodeIs} " .
+      " CREATE (a)-[r:$labels";
+    if (!is_null($data) && count($data) > 0) {
+      $query .= ' {';
+      $isFirst = true;
+      foreach ($data as $key => $value) {
+        if (!$isFirst) {
+          $query .= ', ';
+        }
+        $isFirst = false;
+        $query .= $key . ' : {' . $key . '}';
+      }
+      $query .= ' }';
+    } else {
+      $data = array();
+    }
+    $query .= ']->(b)';
+    $postData = array('query' => $query,
+      'params' => array_merge($data, array('idOfStartNodeIs' => $nodeFromId,
+        'idOfEndNodeIs' => $nodeToId)));
     return self::cypher($url, $postData);
   }
 
