@@ -4,7 +4,6 @@
 
 namespace neoData;
 
-require_once 'config.neo4j.php';
 require_once 'query.php';
 
 class node {
@@ -18,10 +17,10 @@ class node {
     if (!is_null($labelOrNodeId)) {
       if (is_null($indexKey)) {
         $cypher = "MATCH (n) where id(n)={id} RETURN n";
-        $res = query::cypher(CYPHER_API, $cypher, array('id' => $labelOrNodeId));
+        $res = query::cypher($cypher, array('id' => $labelOrNodeId));
       } else {
         $cypher = "MATCH (n:$labelOrNodeId) WHERE n.$indexKey = {indexValue} RETURN n";
-        $res = query::cypher(CYPHER_API, $cypher, array('indexValue' => $indexValue));
+        $res = query::cypher($cypher, array('indexValue' => $indexValue));
       }
       if (count($res['data']) == 0) {
         throw new \Exception('Node not found.', 204);
@@ -37,12 +36,12 @@ class node {
   static public function create($label, $data, $indexKey = null) {
     if (!is_null($indexKey)) {
       $cypher = "MATCH (n:$label) WHERE n.$indexKey = {indexValue} RETURN n";
-      $res = query::cypher(CYPHER_API, $cypher, array('indexValue' => $data[$indexKey]));
+      $res = query::cypher($cypher, array('indexValue' => $data[$indexKey]));
       if (count($res['data']) != 0) {
         throw new \Exception('Node with given index value already exists.', 204);
       }
     }
-    $res = query::createNode(CYPHER_API, $label, $data);
+    $res = query::createNode($label, $data);
     $node = new node();
     $node->initFromQueryResult($res['data'][0][0]);
     return $node;
@@ -67,11 +66,13 @@ class node {
 
   public function update($data) {
     if (!is_null($nodeId = $this->getNodeId())) {
-      $res = query::updateNodeData(CYPHER_API, $nodeId, $data);
+      $res = query::updateNodeData($nodeId, $data);
       foreach ($data as $key => $value) {
         $this->data[$key] = $value;
       }
+      return $res;
     }
+    throw new Exception('Node id not known. Cannot update.', 400);
   }
 
   public function initFromQueryResult($nodeData) {

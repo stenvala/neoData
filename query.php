@@ -2,15 +2,17 @@
 
 namespace neoData;
 
+require_once 'config.neo4j.php';
+
 class query {
 
-  static public function cypher($url, $query, $params = null) {
+  static public function cypher($query, $params = null) {
     if (!is_array($query) && is_null($params)) {
       $query = array('query' => $query);
     } else if (!is_null($params)) {
       $query = array('query' => $query, 'params' => $params);
     }
-    $ch = self::initCurl($url);
+    $ch = self::initCurl(CYPHER_REST_API);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($query));
     $res = curl_exec($ch);
     // curl_getinfo($ch, CURLINFO_HTTP_CODE); <- returns the http code
@@ -18,7 +20,7 @@ class query {
     return json_decode($res, JSON_NUMERIC_CHECK);
   }
 
-  static public function createNode($url, $labels, $data) {
+  static public function createNode($labels, $data) {
     // form query
     if (is_array($labels)) {
       $labels = implode(':', $labels);
@@ -35,10 +37,10 @@ class query {
     $query .= '}) RETURN n';
     $postData = array('query' => $query,
       'params' => $data);
-    return self::cypher($url, $postData);
+    return self::cypher($postData);
   }
 
-  static public function createRelation($url, $labels, $nodeFromId, $nodeToId, $data = null) {
+  static public function createRelation($labels, $nodeFromId, $nodeToId, $data = null) {
     if (is_array($labels)) {
       $labels = implode(':', $labels);
     }
@@ -62,10 +64,10 @@ class query {
     $postData = array('query' => $query,
       'params' => array_merge($data, array('idOfStartNodeIs' => $nodeFromId,
         'idOfEndNodeIs' => $nodeToId)));
-    return self::cypher($url, $postData);
+    return self::cypher($postData);
   }
 
-  static public function updateNodeData($url, $nodeId, $data) {
+  static public function updateNodeData($nodeId, $data) {
     $query = "MATCH (n) WHERE id(n) = {id} SET ";
     $isFirst = true;
     foreach ($data as $key => $value) {
@@ -78,7 +80,7 @@ class query {
 
     $postData = array('query' => $query,
       'params' => array_merge($data, array('id' => $nodeId)));
-    return self::cypher($url, $postData);
+    return self::cypher($postData);
   }
 
   static private function initCurl($url) {
