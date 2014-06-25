@@ -106,7 +106,7 @@ class node {
   public function getValue($key) {
     if (!isset($this->data[$key])) {
       if (!isset($this->defaultValues[$key])) {
-        throw new Exception("Key '$key' does not exists.", 400);
+        throw new \Exception("Key '$key' does not exists.", 400);
       }
       return $this->defaultValues[$key];
     }
