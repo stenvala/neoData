@@ -1,9 +1,14 @@
 <?php
 
+// Created: Antti Stenvall (antti@stenvall.fi)
+//
+// Some methods related to relations
+
 namespace neoData;
 
 require_once 'config.neo4j.php';
 require_once 'query.php';
+require_once 'node.php';
 
 class relation {
 
