@@ -14,7 +14,7 @@ class query {
 
   static public $DEBUG = false;
 
-  // Cypher query method
+  // perform cypher queries
   static public function cypher($query, $params = null) {
     if (!is_array($query) && is_null($params)) {
       $query = array('query' => $query);
@@ -22,7 +22,7 @@ class query {
       $query = array('query' => $query, 'params' => $params);
     }
     if (self::$DEBUG) {
-      print $query['query'] . PHP_EOL . PHP_EOL;
+      print PHP_EOL . $query['query'] . PHP_EOL;
     }
     $ch = self::initCurl(CYPHER_REST_API);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($query));

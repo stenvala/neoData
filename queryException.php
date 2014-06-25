@@ -18,6 +18,7 @@ class queryException extends \Exception {
     $this->stackTrace = $res['stacktrace'];
     $this->params = $params;
     $this->query = $query;
+    $this->url = $url;
   }
 
   public function getFullName() {

@@ -10,7 +10,7 @@ require_once 'query.php';
 
 class node {
 
-  private $data;
+  private $data = array();
   private $labels = array();
   private $nodeId = null;
   protected $defaultValues = array();
@@ -85,6 +85,16 @@ class node {
     return $this->data;
   }
 
+  public function getDataWithDefaultValues(){
+    $data = $this->data;
+    foreach ($this->defaultValues as $key => $value){
+      if (!isset($data[$key])){
+        $data[$key] = $value;
+      }
+    }
+    return $data;
+  }
+
   public function getLabels() {
     return $this->labels;
   }
@@ -94,6 +104,12 @@ class node {
   }
 
   public function getValue($key) {
+    if (!isset($this->data[$key])){
+      if (!isset($this->defaultValues($key))) {
+        throw new Exception("Key '$key' does not exists.", 400);
+      }
+      return $this->defaultValues[$key];
+    }
     return $this->data[$key];
   }
 
@@ -104,20 +120,18 @@ class node {
   public function initFromQueryResult($data, $labels = null) {
     // find id, self url is like: http://localhost:7474/db/data/node/279
     if (!isset($data['self'])) {
-      throw new \Exception('Remember to add all node data.', 400);
+      throw new \Exception('Remember to pass all node data.', 400);
     }
     $selfUrl = $data['self'];
     $this->nodeId = self::getNodeIdFromSelf($selfUrl);
     if (!is_null($labels)) {
       $this->labels = $labels;
     }
-    // properties are in $data['data'];
     $this->data = $data['data'];
-    foreach ($this->defaultValues as $key => $value) {
-      if (!isset($this->data[$key])) {
-        $this->data[$key] = $value;
-      }
-    }
+  }
+
+  public function setDefaultValues($defaultValues){
+    $this->defaultValues = $defaultValues;
   }
 
   public function update($data) {
