@@ -35,24 +35,22 @@ class query {
     return json_decode($res, JSON_NUMERIC_CHECK);
   }
 
-  // Some short-cuts
-  static public function deleteNode($nodeId) {
-    $query = "MATCH (a) WHERE id(a) = $nodeId OPTIONAL MATCH (a)-[r]-() DELETE a,r";
-    return self::cypher($query);
+  // perform any queries by getting or posting data
+  static public function q($url, $post = null) {
+    $ch = self::initCurl($url);
+    if (!is_null($post)) {
+      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+    }
+    $res = curl_exec($ch);
+    $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($statusCode != 200) {
+      throw new queryException($statusCode, json_decode($res, JSON_NUMERIC_CHECK), $post, $url);
+    }
+    return json_decode($res, JSON_NUMERIC_CHECK);
   }
 
-  static public function deleteRelation($relationIdOrNodeFromId, $nodeToId = null, $label = null) {
-    if (is_null($nodeToId)) {
-      return self::cypher("DELETE $relationIdOrNodeFromId");
-    }
-    $query = 'MATCH (a)-[r';
-    if (!is_null($label)) {
-      $query .= ":$label";
-    }
-    $query .= "]->(b) WHERE id(a) = $relationIdOrNodeFromId AND id(b) = $nodeToId " .
-      'WITH r DELETE r';
-    return self::cypher($query);
-  }
+  // Few simple boilerplate query functions which include some easy cypher
 
   static public function createNode($labels, $data) {
     // form query
@@ -98,12 +96,44 @@ class query {
     return self::cypher($query, $data);
   }
 
+  static public function deleteNode($nodeId) {
+    $query = "MATCH (a) WHERE id(a) = $nodeId OPTIONAL MATCH (a)-[r]-() DELETE a, r";
+    return self::cypher($query);
+  }
+
+  static public function deleteRelation($relationIdOrNodeFromId, $nodeToId = null, $label = null) {
+    if (is_null($nodeToId)) {
+      return self::cypher("DELETE $relationIdOrNodeFromId");
+    }
+    $query = 'MATCH (a)-[r';
+    if (!is_null($label)) {
+      $query .= ":$label";
+    }
+    $query .= "]->(b) WHERE id(a) = $relationIdOrNodeFromId AND id(b) = $nodeToId " .
+      'WITH r DELETE r';
+    return self::cypher($query);
+  }
+
+  static public function getNode($label, $props) {
+    $query = "MATCH (n:$label) WHERE";
+    $isFirst = true;
+    foreach ($props as $key => $value) {
+      if (!$isFirst) {
+        $query .= ' and';
+      }
+      $query .= " n.$key = {" . "$key}";
+      $isFirst = false;
+    }
+    $query .= ' RETURN n';
+    return self::cypher($query, $props);
+  }
+
   static public function removeData($id, $propertiesToDelete) {
     $query = "MATCH (n) WHERE id(n)=$id";
     $isFirst = true;
     foreach ($propertiesToDelete as $prop) {
       if (!$isFirst) {
-        $query .= ',';
+        $query .= ' ,';
       }
       $query .= " REMOVE n.$prop";
     }
@@ -112,13 +142,13 @@ class query {
   }
 
   static public function updateData($id, $data) {
-    $query = "MATCH (n) WHERE id(n) = {$id} SET ";
+    $query = "MATCH (n) WHERE id(n) = {$id} SET";
     $isFirst = true;
     foreach ($data as $key => $value) {
       if (!$isFirst) {
-        $query .= ', ';
+        $query .= ' ,';
       }
-      $query .= "n.$key = {" . $key . "}";
+      $query .= " n.$key = {" . "$key}";
       $isFirst = false;
     }
     $query .= ' RETURN n';
@@ -128,6 +158,7 @@ class query {
   }
 
   // Private for CURL initialization
+
   static private function initCurl($url) {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
