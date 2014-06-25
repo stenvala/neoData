@@ -51,6 +51,30 @@ class node extends testBasis {
     $user->update($data);
   }
 
+  /**
+   * @expectedException Exception
+   * @expectedExceptionCode 400
+   *
+   */
+  public function testExceptionUnknownProperty() {
+    $this->initDB();
+    $data = array('name' => 'Test user');
+    $user = \neoData\node::create(self::LABEL, $data, 'name');
+    $user->getValue('none');
+  }
+
+  /**
+   * @expectedException Exception
+   * @expectedExceptionCode 400
+   *
+   */
+  public function testExceptionBadInit() {
+    $this->initDB();
+    $node = new \neoData\node();
+    $node->initFromQueryResult('dummy');
+  }
+
+
   public function testCreateNode() {
     $this->initDB();
     $data = array('name' => 'Test user');
