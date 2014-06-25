@@ -85,10 +85,10 @@ class node {
     return $this->data;
   }
 
-  public function getDataWithDefaultValues(){
+  public function getDataWithDefaultValues() {
     $data = $this->data;
-    foreach ($this->defaultValues as $key => $value){
-      if (!isset($data[$key])){
+    foreach ($this->defaultValues as $key => $value) {
+      if (!isset($data[$key])) {
         $data[$key] = $value;
       }
     }
@@ -104,8 +104,8 @@ class node {
   }
 
   public function getValue($key) {
-    if (!isset($this->data[$key])){
-      if (!isset($this->defaultValues($key))) {
+    if (!isset($this->data[$key])) {
+      if (!isset($this->defaultValues[$key])) {
         throw new Exception("Key '$key' does not exists.", 400);
       }
       return $this->defaultValues[$key];
@@ -130,7 +130,7 @@ class node {
     $this->data = $data['data'];
   }
 
-  public function setDefaultValues($defaultValues){
+  public function setDefaultValues($defaultValues) {
     $this->defaultValues = $defaultValues;
   }
 
