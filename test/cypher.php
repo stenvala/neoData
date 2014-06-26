@@ -39,7 +39,7 @@ class relation extends testBasis {
     $this->assertNotEquals($data3['name'], $data1['name']);
   }
 
-  // TODO: delete node, delete relation, remove properties, update properties
+  // TODO: delete node, delete relation, remove properties, update properties, perform queries via q
 
 }
 

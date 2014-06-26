@@ -28,7 +28,7 @@ class relation extends testBasis {
     $res = \neoData\query::cypher($cypher, $data1);
     $user3 = new \neoData\node();
     $self = $res['data'][0][0]['self'];
-    $this->assertGreaterThan(0, \neoData\node::getNodeIdFromSelf($self));
+    $this->assertGreaterThan(0, \neoData\query::getNodeIdFromSelf($self));
     $user3->initFromQueryResult($res['data'][0][0]);
     $this->assertEquals($user3->getValue('name'), $user2->getValue('name'));
     $this->assertNotEquals($user1->getValue('name'), $user2->getValue('name'));
