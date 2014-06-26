@@ -14,6 +14,16 @@ class query {
 
   static public $DEBUG = false;
 
+  const CLAUSE_CREATE = 'CREATE';
+  const CLAUSE_DELETE = 'DELETE';
+  const CLAUSE_MATCH = 'MATCH';
+  const CLAUSE_OPTIONAL_MATCH = 'OPTIONAL MATCH';
+  const CLAUSE_REMOVE = 'REMOVE';
+  const CLAUSE_RETURN = 'RETURN';
+  const CLAUSE_SET = 'SET';
+  const CLAUSE_WHERE = 'WHERE';
+  const CLAUSE_WITH = 'WITH';
+
   // perform cypher queries
   static public function cypher($query, $params = null) {
     if (!is_array($query) && is_null($params)) {
@@ -35,7 +45,7 @@ class query {
     return json_decode($res, JSON_NUMERIC_CHECK);
   }
 
-  // perform any queries by getting or posting data
+  // perform any queries by getting or posting data to given url
   static public function q($url, $post = null) {
     $ch = self::initCurl($url);
     if (!is_null($post)) {
@@ -57,16 +67,9 @@ class query {
     if (is_array($labels)) {
       $labels = implode(':', $labels);
     }
-    $query = "CREATE (n:$labels {";
-    $isFirst = true;
-    foreach ($data as $key => $value) {
-      if (!$isFirst) {
-        $query .= ',';
-      }
-      $query .= "$key: {" . "$key}";
-      $isFirst = false;
-    }
-    $query .= '}) RETURN n';
+    $query = self::CLAUSE_CREATE . " (n:$labels {" .
+      self::appendCypher(self::CLAUSE_CREATE, $data) .
+      '}) ' . self::CLAUSE_RETURN . ' n';
     $postData = array('query' => $query,
       'params' => $data);
     return self::cypher($postData);
@@ -76,28 +79,19 @@ class query {
     if (is_array($labels)) {
       $labels = implode(':', $labels);
     }
-    $query = "MATCH (a), (b) WHERE id(a) = $nodeFromId AND id(b) = $nodeToId " .
-      " CREATE (a)-[r:$labels";
-    if (!is_null($data) && count($data) > 0) {
-      $query .= ' {';
-      $isFirst = true;
-      foreach ($data as $key => $value) {
-        if (!$isFirst) {
-          $query .= ', ';
-        }
-        $query .= "$key: {" . "$key}";
-        $isFirst = false;
-      }
-      $query .= ' }';
-    } else {
-
-    }
-    $query .= ']->(b)';
+    $query = self::CLAUSE_MATCH . ' (a), (b) ' .
+      self::CLAUSE_WHERE . " id(a) = $nodeFromId AND id(b) = $nodeToId " .
+      self::CLAUSE_CREATE . " (a)-[n:$labels {" .
+      self::appendCypher(self::CLAUSE_CREATE, $data) .
+      ' }]->(b)';
     return self::cypher($query, $data);
   }
 
   static public function deleteNode($nodeId) {
-    $query = "MATCH (a) WHERE id(a) = $nodeId OPTIONAL MATCH (a)-[r]-() DELETE a, r";
+    $query = self::CLAUSE_MATCH . ' (a) ' .
+      self::CLAUSE_WHERE . " id(a) = $nodeId " .
+      self::CLAUSE_OPTIONAL_MATCH . ' (a)-[r]-() ' .
+      self::CLAUSE_DELETE . ' a, r';
     return self::cypher($query);
   }
 
@@ -105,56 +99,107 @@ class query {
     if (is_null($nodeToId)) {
       return self::cypher("DELETE $relationIdOrNodeFromId");
     }
-    $query = 'MATCH (a)-[r';
-    if (!is_null($label)) {
-      $query .= ":$label";
-    }
-    $query .= "]->(b) WHERE id(a) = $relationIdOrNodeFromId AND id(b) = $nodeToId " .
-      'WITH r DELETE r';
+    $query = self::CLAUSE_MATCH . ' (a)-[r';
+    $query .= is_null($label) ? '' : ":$label";
+    $query .= ']->(b) ' .
+      self::CLAUSE_WHERE . " id(a) = $relationIdOrNodeFromId AND id(b) = $nodeToId " .
+      self::CLAUSE_WITH . ' r ' .
+      self::CLAUSE_DELETE . ' r';
     return self::cypher($query);
   }
 
   static public function getNode($label, $props) {
-    $query = "MATCH (n:$label) WHERE";
-    $isFirst = true;
-    foreach ($props as $key => $value) {
-      if (!$isFirst) {
-        $query .= ' and';
-      }
-      $query .= " n.$key = {" . "$key}";
-      $isFirst = false;
-    }
-    $query .= ' RETURN n';
+    $query = self::CLAUSE_MATCH . " (n:$label) " .
+      self::CLAUSE_WHERE . ' ' .
+      self::appendCypher(self::CLAUSE_WHERE, $props) .
+      self::CLAUSE_RETURN . ' n';
     return self::cypher($query, $props);
   }
 
-  static public function removeData($id, $propertiesToDelete) {
-    $query = "MATCH (n) WHERE id(n)=$id";
-    $isFirst = true;
-    foreach ($propertiesToDelete as $prop) {
-      if (!$isFirst) {
-        $query .= ' ,';
-      }
-      $query .= " REMOVE n.$prop";
+  static public function getNodeData($labelOrNode, $props = null) {
+    if (!is_null($props)) {
+      $labelOrNode = self::getNode($labelOrNode, $props);
     }
-    $query .= ' RETURN n';
+    if (!isset($labelOrNode['data'][0][0]['data'])) {
+      throw new Exception("Not valid note data", 400);
+    }
+    return $labelOrNode['data'][0][0]['data'];
+  }
+
+  static public function getNodeIdFromData($node) {
+    return self::getNodeIdFromSelf($node['data'][0][0]['self']);
+  }
+
+  // returns nodeId from self url
+  static public function getNodeIdFromSelf($self) {
+    preg_match("@(.*?)(/)([0-9]*?)($)@i", $self, $data);
+    $val = (int) $data[3];
+    if (gettype($val) != 'integer' || $val < 0) {
+      throw new \Exception('Could not parse id from link', 400);
+    }
+
+    return $val;
+  }
+
+  static public function removeData($id, $propertiesToDelete) {
+    $query = self::CLAUSE_MATCH . ' (n) ' .
+      self::CLAUSE_WHERE . " id(n)=$id " .
+      self::appendCypher(self::CLAUSE_REMOVE, $propertiesToDelete) .
+      self::CLAUSE_RETURN . ' n';
     return self::cypher($query);
   }
 
   static public function updateData($id, $data) {
-    $query = "MATCH (n) WHERE id(n) = {$id} SET";
-    $isFirst = true;
-    foreach ($data as $key => $value) {
-      if (!$isFirst) {
-        $query .= ' ,';
-      }
-      $query .= " n.$key = {" . "$key}";
-      $isFirst = false;
-    }
-    $query .= ' RETURN n';
+    $query = self::CLAUSE_MATCH . ' (n) ' .
+      self::CLAUSE_WHERE . " id(n)=$id " .
+      self::CLAUSE_SET .
+      self::appendCypher(self::CLAUSE_SET, $data) .
+      self::CLAUSE_RETURN . ' n';
     $postData = array('query' => $query,
       'params' => $data);
     return self::cypher($postData);
+  }
+
+  // Helpers
+
+  static public function appendCypher($clause, $data) {
+    $app = '';
+    $isFirst = true;
+    if (!is_array($data)) {
+      return;
+    }
+    foreach ($data as $key => $value) {
+      switch ($clause) {
+        case self::CLAUSE_CREATE:
+          if (!$isFirst) {
+            $app .= ',';
+          }
+          $app .= "$key: {" . "$key}";
+          break;
+        case self::CLAUSE_REMOVE:
+          if (!$isFirst) {
+            $app .= ' ,';
+          }
+          $app .= " REMOVE n.$value";
+          break;
+        case self::CLAUSE_SET:
+          if (!$isFirst) {
+            $app .= ' ,';
+          }
+          $app .= " n.$key = {" . "$key}";
+          break;
+        case self::CLAUSE_WHERE:
+          if (!$isFirst) {
+            $app .= ' and';
+          }
+          $app .= " n.$key = {" . "$key}";
+          break;
+        default:
+          throw new \Exception('Unknown clause', 400);
+      }
+      $isFirst = false;
+    }
+    return $app . ' ';
   }
 
   // Private for CURL initialization
@@ -169,4 +214,5 @@ class query {
   }
 
 }
+
 ?>

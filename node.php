@@ -60,12 +60,6 @@ class node {
     return $node;
   }
 
-  // returns nodeId from self url
-  static public function getNodeIdFromSelf($self) {
-    preg_match("@(.*?)(/)([0-9]*?)($)@i", $self, $data);
-    return (int) $data[3];
-  }
-
   /*
    * Public
    */
@@ -103,6 +97,10 @@ class node {
     return $this->nodeId;
   }
 
+  public function getProperties(){
+    return array_keys($this->data);
+  }
+
   public function getValue($key) {
     if (!isset($this->data[$key])) {
       if (!isset($this->defaultValues[$key])) {
@@ -117,13 +115,17 @@ class node {
     return in_array($label, $this->labels);
   }
 
+  public function hasProperty($key){
+    return array_key_exists($key, $this->data);
+  }
+
   public function initFromQueryResult($data, $labels = null) {
     // find id, self url is like: http://localhost:7474/db/data/node/279
     if (!isset($data['self'])) {
       throw new \Exception('Remember to pass all node data.', 400);
     }
     $selfUrl = $data['self'];
-    $this->nodeId = self::getNodeIdFromSelf($selfUrl);
+    $this->nodeId = query::getNodeIdFromSelf($selfUrl);
     if (!is_null($labels)) {
       $this->labels = $labels;
     }
